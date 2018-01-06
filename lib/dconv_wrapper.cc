@@ -4,6 +4,7 @@ namespace double_conversion
 {
   static StringToDoubleConverter* s2d_instance = NULL;
   static DoubleToStringConverter* d2s_instance = NULL;
+  static signed int g_DJM_precision = -1;
 
   extern "C"
   {
@@ -14,18 +15,25 @@ namespace double_conversion
                         int decimal_in_shortest_low,
                         int decimal_in_shortest_high,
                         int max_leading_padding_zeroes_in_precision_mode,
-                        int max_trailing_padding_zeroes_in_precision_mode)
+                        int max_trailing_padding_zeroes_in_precision_mode,
+                        int DJM_precision)
     {
         d2s_instance = new DoubleToStringConverter(flags, infinity_symbol, nan_symbol,
                                         exponent_character, decimal_in_shortest_low,
                                         decimal_in_shortest_high, max_leading_padding_zeroes_in_precision_mode,
                                         max_trailing_padding_zeroes_in_precision_mode);
+        g_DJM_precision = DJM_precision;
     }
 
     int dconv_d2s(double value, char* buf, int buflen, int* strlength)
     {
         StringBuilder sb(buf, buflen);
-        int success =  static_cast<int>(d2s_instance->ToShortest(value, &sb));
+        int success;
+        if(g_DJM_precision >= 0) {
+            success =  static_cast<int>(d2s_instance->ToPrecision(value, g_DJM_precision, &sb));
+        } else {
+            success =  static_cast<int>(d2s_instance->ToShortest(value, &sb));
+        }
         *strlength = success ? sb.position() : -1;
         return success;
     }

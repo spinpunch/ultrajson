@@ -355,7 +355,8 @@ void dconv_d2s_init(int flags,
                     int decimal_in_shortest_low,
                     int decimal_in_shortest_high,
                     int max_leading_padding_zeroes_in_precision_mode,
-                    int max_trailing_padding_zeroes_in_precision_mode);
+                    int max_trailing_padding_zeroes_in_precision_mode,
+                    int DJM_precision);
 int dconv_d2s(double value, char* buf, int buflen, int* strlength);
 void dconv_d2s_free(void);
 

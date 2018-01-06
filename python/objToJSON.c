@@ -757,7 +757,7 @@ PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
   PyObject *osortKeys = NULL;
   PyObject *oappendNewline = NULL;
   PyObject *oPretty = NULL;
-  int idoublePrecision = 5; // default double precision setting
+  int iDJMdoublePrecision = -1; // DJM: -1 means emit precise doubles, >=0 means limit to that many digits
   int iDJM_size_hint = 0;
   int DJM_append_newline = 0;
 
@@ -793,7 +793,7 @@ PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
 
   PRINTMARK();
 
-  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOiiiOO", kwlist, &oinput, &oensureAscii, &oencodeHTMLChars, &oescapeForwardSlashes, &osortKeys, &encoder.indent, &idoublePrecision, &iDJM_size_hint, &oappendNewline, &oPretty))
+  if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OOOOiiiOO", kwlist, &oinput, &oensureAscii, &oencodeHTMLChars, &oescapeForwardSlashes, &osortKeys, &encoder.indent, &iDJMdoublePrecision, &iDJM_size_hint, &oappendNewline, &oPretty))
   {
     return NULL;
   }
@@ -829,7 +829,8 @@ PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
   }
 
   dconv_d2s_init(DCONV_D2S_EMIT_TRAILING_DECIMAL_POINT | DCONV_D2S_EMIT_TRAILING_ZERO_AFTER_POINT,
-                 NULL, NULL, 'e', DCONV_DECIMAL_IN_SHORTEST_LOW, DCONV_DECIMAL_IN_SHORTEST_HIGH, 0, 0);
+                 NULL, NULL, 'e', DCONV_DECIMAL_IN_SHORTEST_LOW, DCONV_DECIMAL_IN_SHORTEST_HIGH, 0, 0,
+                 iDJMdoublePrecision);
 
   if(iDJM_size_hint > sizeof(buffer))
   {
