@@ -788,7 +788,49 @@ class UltraJSONTests(TestCase):
             pass
         else:
             assert False, "expected ValueError"       
+
+    def test_decodeWithTrailingWhitespaces(self):
+        input = "{}\n\t "
+        ujson.decode(input)
+
+    def test_decodeWithTrailingNonWhitespaces(self):
+        try:
+            input = "{}\n\t a"
+            ujson.decode(input)
+        except ValueError:
+            pass
+        else:
+            assert False, "expected ValueError"
+
+    def test_decodeArrayWithBigInt(self):
+        try:
+            ujson.loads('[18446098363113800555]')
+        except ValueError:
+            pass
+        else:
+            assert False, "expected ValueError"
+
+    def test_decodeFloatingPointAdditionalTests(self):
+        self.assertEquals(-1.1234567893, ujson.loads("-1.1234567893"))
+        self.assertEquals(-1.234567893, ujson.loads("-1.234567893"))
+        self.assertEquals(-1.34567893, ujson.loads("-1.34567893"))
+        self.assertEquals(-1.4567893, ujson.loads("-1.4567893"))
+        self.assertEquals(-1.567893, ujson.loads("-1.567893"))
+        self.assertEquals(-1.67893, ujson.loads("-1.67893"))
+        self.assertEquals(-1.7893, ujson.loads("-1.7893"))
+        self.assertEquals(-1.893, ujson.loads("-1.893"))
+        self.assertEquals(-1.3, ujson.loads("-1.3"))
         
+        self.assertEquals(1.1234567893, ujson.loads("1.1234567893"))
+        self.assertEquals(1.234567893, ujson.loads("1.234567893"))
+        self.assertEquals(1.34567893, ujson.loads("1.34567893"))
+        self.assertEquals(1.4567893, ujson.loads("1.4567893"))
+        self.assertEquals(1.567893, ujson.loads("1.567893"))
+        self.assertEquals(1.67893, ujson.loads("1.67893"))
+        self.assertEquals(1.7893, ujson.loads("1.7893"))
+        self.assertEquals(1.893, ujson.loads("1.893"))
+        self.assertEquals(1.3, ujson.loads("1.3"))
+            
 """
 def test_decodeNumericIntFrcOverflow(self):
 input = "X.Y"

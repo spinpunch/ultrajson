@@ -55,9 +55,9 @@ typedef JSOBJ (*PFN_DECODER)( struct DecoderState *ds);
 
 double createDouble(double intNeg, double intValue, double frcValue, int frcDecimalCount)
 {
-    static const double g_pow10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000, 10000000000, 100000000000, 1000000000000, 10000000000000, 100000000000000, 1000000000000000};
-
-    return (intValue + (frcValue / g_pow10[frcDecimalCount])) * intNeg;
+    static const double g_pow10[] = {1.0, 0.1, 0.01, 0.001, 0.0001, 0.00001, 0.000001,0.0000001, 0.00000001, 0.000000001, 0.0000000001, 0.00000000001, 0.000000000001, 0.0000000000001, 0.00000000000001, 0.000000000000001};
+									 
+    return (intValue + (frcValue * g_pow10[frcDecimalCount])) * intNeg;
 }
 
 static JSOBJ SetError( struct DecoderState *ds, int offset, const char *message)
@@ -89,20 +89,19 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_numeric ( struct DecoderState *ds)
     double frcValue = 0.0;
     double expValue;
     char *offset = ds->start;
-
-	JSUINT64 overflowLimit = LLONG_MAX;
+	JSUINT64 overflowLimit = (JSUINT64) LLONG_MAX;
 
     if (*(offset) == '-')
     {
         offset ++;
         intNeg = -1;
-		overflowLimit = LLONG_MIN;
+		overflowLimit = (JSUINT64) LLONG_MIN;
     }
 
     // Scan integer part
     intValue = 0;
 
-    while (1)
+    for (;;)
     {
         chr = (int) (unsigned char) *(offset);
 
@@ -125,10 +124,10 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_numeric ( struct DecoderState *ds)
 #else
             intValue = intValue * 10ULL + (JSLONG) (chr - 48);
 
-			if (intValue > overflowLimit)
-			{
-				return SetError(ds, -1, overflowLimit == LLONG_MAX ? "Value is too big" : "Value is too small");
-			}
+            if (intValue > overflowLimit)
+            {
+                return SetError(ds, -1, intNeg == -1 ? "Value is too small" : "Value is too big");
+            }
 #endif
 
             offset ++;
@@ -188,7 +187,7 @@ DECODE_FRACTION:
 
     // Scan fraction part
     frcValue = 0.0;
-    while (1)
+    for (;;)
     {
         chr = (int) (unsigned char) *(offset);
 
@@ -252,7 +251,7 @@ DECODE_EXPONENT:
 
     expValue = 0.0;
 
-    while (1)
+    for (;;)
     {
         chr = (int) (unsigned char) *(offset);
 
@@ -362,7 +361,7 @@ FASTCALL_ATTR void FASTCALL_MSVC SkipWhitespace(struct DecoderState *ds)
 {
     char *offset = ds->start;
 
-    while (1)
+    for (;;)
     {
         switch (*offset)
         {
@@ -424,7 +423,7 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_string ( struct DecoderState *ds)
     ds->lastType = JT_INVALID;
     ds->start ++;
 
-    if ( (ds->end - ds->start) > escLen)
+    if ( (size_t) (ds->end - ds->start) > escLen)
     {
         size_t newSize = (ds->end - ds->start);
 
@@ -452,9 +451,9 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_string ( struct DecoderState *ds)
     }
 
     escOffset = ds->escStart;
-    inputOffset = ds->start;
+    inputOffset = (JSUINT8 *) ds->start;
 
-    while(1)
+    for (;;)
     {
         switch (g_decoderLookup[(JSUINT8)(*inputOffset)])
         {
@@ -631,8 +630,8 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_string ( struct DecoderState *ds)
             if (ucs >= 0x10000)
             {
                 ucs -= 0x10000;
-                *(escOffset++) = (ucs >> 10) + 0xd800;
-                *(escOffset++) = (ucs & 0x3ff) + 0xdc00;
+                *(escOffset++) = (wchar_t) (ucs >> 10) + 0xd800;
+                *(escOffset++) = (wchar_t) (ucs & 0x3ff) + 0xdc00;
             }
             else
             {
@@ -657,7 +656,7 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_array( struct DecoderState *ds)
     ds->start ++;
     
 
-    while (1)//(*ds->start) != '\0')
+    for (;;)
     {
         SkipWhitespace(ds);
 
@@ -679,12 +678,10 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_array( struct DecoderState *ds)
 
                 default:
                     ds->dec->releaseObject(newObj);
-                    return SetError(ds, -1, "Unexpected character in found when decoding array value");
+                    if (!ds->dec->errorStr)
+                        SetError(ds, -1, "Unexpected character found when decoding array value (1)");
+                    return NULL;
             }
-        
-        
-            ds->dec->releaseObject(newObj);
-            return NULL;
         }
 
         ds->dec->arrayAddItem (newObj, itemValue);
@@ -701,14 +698,11 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_array( struct DecoderState *ds)
 
             default:
                 ds->dec->releaseObject(newObj);
-                return SetError(ds, -1, "Unexpected character in found when decoding array value");
+                return SetError(ds, -1, "Unexpected character found when decoding array value (2)");
         }
         
         len ++;
     }
-
-    ds->dec->releaseObject(newObj);
-    return SetError(ds, -1, "Unmatched ']' when decoding 'array'");
 }
 
 
@@ -721,7 +715,7 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_object( struct DecoderState *ds)
 
     ds->start ++;
 
-    while (1)
+    for (;;)
     {
         SkipWhitespace(ds);
 
@@ -784,14 +778,11 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_object( struct DecoderState *ds)
                 return SetError(ds, -1, "Unexpected character in found when decoding object value");
         }
     }
-
-    ds->dec->releaseObject(newObj);
-    return SetError(ds, -1, "Unmatched '}' when decoding object");
 }
 
 FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_any(struct DecoderState *ds)
 {
-    while (1)
+    for (;;)
     {
         switch (*ds->start)
         {
@@ -830,12 +821,6 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_any(struct DecoderState *ds)
     }
 }
 
-static void skip_whitespace_and_carriage_return(struct DecoderState *ds)
-{
-    while (ds->start != ds->end && (*ds->start == '\n' || *ds->start == ' '))
-        ds->start ++;
-}
-
 JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer)
 {
 
@@ -864,7 +849,7 @@ JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuf
         dec->free(ds.escStart);
     }
 
-    skip_whitespace_and_carriage_return(&ds);
+    SkipWhitespace(&ds);
 
     if (ds.start != ds.end && ret)
     {
