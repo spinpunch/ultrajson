@@ -62,7 +62,7 @@ static const JSUINT8 g_asciiOutputTable[256] =
 {
 /* 0x00 */ 0, 30, 30, 30, 30, 30, 30, 30, 10, 12, 14, 30, 16, 18, 30, 30, 
 /* 0x10 */ 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30,
-/* 0x20 */ 1, 1, 20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 24, 
+/* 0x20 */ 1, 1, 20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* DJM - do not escape "/" 0x27 24, */
 /* 0x30 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 /* 0x40 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 
 /* 0x50 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 22, 1, 1, 1,
@@ -159,7 +159,8 @@ int Buffer_EscapeStringUnvalidated (JSOBJ obj, JSONObjectEncoder *enc, const cha
 
         case '\"': (*of++) = '\\'; (*of++) = '\"'; break;
         case '\\': (*of++) = '\\'; (*of++) = '\\'; break;
-        case '/':  (*of++) = '\\'; (*of++) = '/'; break;
+        /* DJM - do not escape forward slashes */
+        /* case '/':  (*of++) = '\\'; (*of++) = '/'; break; */
         case '\b': (*of++) = '\\'; (*of++) = 'b'; break;
         case '\f': (*of++) = '\\'; (*of++) = 'f'; break;
         case '\n': (*of++) = '\\'; (*of++) = 'n'; break;
@@ -618,7 +619,7 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
 {
     const char *value;
     char *objName;
-    int count;
+    int count, indent;
     JSOBJ iterObj;
     size_t szlen;
     JSONTypeContext tc;
@@ -640,7 +641,7 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
     4 bytes (of UTF-8) => "\uXXXX\uXXXX" (12 bytes)
     */
 
-    Buffer_Reserve(enc, 256 + (((cbName / 4) + 1) * 12));
+    Buffer_Reserve(enc, 2*(enc->level+1) + 256 + (((cbName / 4) + 1) * 12));
     if (enc->errorMsg)
     {
         return;
@@ -669,9 +670,11 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
         Buffer_AppendCharUnchecked(enc, '\"');
 
         Buffer_AppendCharUnchecked (enc, ':');
-#ifndef JSON_NO_EXTRA_WHITESPACE
-        Buffer_AppendCharUnchecked (enc, ' ');
-#endif
+
+        if(enc->pretty)
+        {
+            Buffer_AppendCharUnchecked (enc, ' ');
+        }
     }
 
     enc->beginTypeContext(obj, &tc);
@@ -693,9 +696,11 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
                 if (count > 0)
                 {
                     Buffer_AppendCharUnchecked (enc, ',');
-#ifndef JSON_NO_EXTRA_WHITESPACE
-                    Buffer_AppendCharUnchecked (buffer, ' ');
-#endif
+                    /*
+                    if(enc->pretty) {
+                        Buffer_AppendCharUnchecked (enc, ' ');
+                    }
+                    */
                 }
 
                 iterObj = enc->iterGetValue(obj, &tc);
@@ -716,15 +721,33 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
             enc->iterBegin(obj, &tc);
 
             Buffer_AppendCharUnchecked (enc, '{');
+            enc->level++;
+
+#define INDENT_CHAR ' '
+
+            if(enc->pretty)
+            {
+                Buffer_AppendCharUnchecked (enc, '\n');
+                for(indent = 0; indent < enc->level; indent++)
+                {
+                    Buffer_AppendCharUnchecked (enc, INDENT_CHAR);
+                }
+            }
 
             while (enc->iterNext(obj, &tc))
             {
                 if (count > 0)
                 {
                     Buffer_AppendCharUnchecked (enc, ',');
-#ifndef JSON_NO_EXTRA_WHITESPACE
-                    Buffer_AppendCharUnchecked (enc, ' ');
-#endif
+                    if(enc->pretty)
+                    {
+                        Buffer_Reserve(enc, enc->level+1);
+                        Buffer_AppendCharUnchecked (enc, '\n');
+                        for(indent = 0; indent < enc->level; indent++)
+                        {				
+                            Buffer_AppendCharUnchecked (enc, INDENT_CHAR);
+                        }
+                    }
                 }
 
                 iterObj = enc->iterGetValue(obj, &tc);
@@ -736,6 +759,18 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
             }
 
             enc->iterEnd(obj, &tc);
+
+            enc->level--;
+
+            if(enc->pretty)
+            {
+                Buffer_AppendCharUnchecked (enc, '\n');
+                for(indent = 0; indent < enc->level-1; indent++)
+                {
+                    Buffer_AppendCharUnchecked (enc, INDENT_CHAR);
+                }
+            }
+
             Buffer_AppendCharUnchecked (enc, '}');
             break;
         }
@@ -833,7 +868,7 @@ void encode(JSOBJ obj, JSONObjectEncoder *enc, const char *name, size_t cbName)
 
 }
 
-char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t _cbBuffer)
+char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t _cbBuffer, int DJM_append_newline)
 {
     enc->malloc = enc->malloc ? enc->malloc : malloc;
     enc->free =  enc->free ? enc->free : free;
@@ -855,7 +890,8 @@ char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t
 
     if (_buffer == NULL)
     {
-        _cbBuffer = 32768;
+        /* DJM - allow specification of a size hint */
+        if(_cbBuffer <= 0) { _cbBuffer = 32768; }
         enc->start = (char *) enc->malloc (_cbBuffer);
         if (!enc->start)
         {
@@ -876,10 +912,13 @@ char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *_buffer, size_t
 
     encode (obj, enc, NULL, 0);
     
-    Buffer_Reserve(enc, 1);
+    Buffer_Reserve(enc, 2);
     if (enc->errorMsg)
     {
         return NULL;
+    }
+    if(DJM_append_newline) {
+	    Buffer_AppendCharUnchecked(enc, '\n');
     }
     Buffer_AppendCharUnchecked(enc, '\0');
 

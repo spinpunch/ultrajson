@@ -729,14 +729,21 @@ char *Object_iterGetName(JSOBJ obj, JSONTypeContext *tc, size_t *outLen)
 
 PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
 {
-    static char *kwlist[] = { "obj", "ensure_ascii", "double_precision", NULL};
+    static char *kwlist[] = { "obj", "ensure_ascii", "double_precision", "DJM_size_hint", "DJM_append_newline", "DJM_pretty", NULL};
 
     char buffer[65536];
     char *ret;
     PyObject *newobj;
     PyObject *oinput = NULL;
     PyObject *oensureAscii = NULL;
+    PyObject *oappendNewline = NULL;
+    PyObject *oPretty = NULL;
     int idoublePrecision = 5; // default double precision setting
+    int iDJM_size_hint = 0;
+    int DJM_append_newline = 0;
+
+    char *buf;
+    int bufsize;
 
     JSONObjectEncoder encoder = 
     {
@@ -758,12 +765,13 @@ PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
         -1, //recursionMax
         idoublePrecision,
         1, //forceAscii
+        0 // pretty
     };
 
 
     PRINTMARK();
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|Oi", kwlist, &oinput, &oensureAscii, &idoublePrecision))
+    if (!PyArg_ParseTupleAndKeywords(args, kwargs, "O|OiiOO", kwlist, &oinput, &oensureAscii, &idoublePrecision, &iDJM_size_hint, &oappendNewline, &oPretty))
     {
         return NULL;
     }
@@ -773,11 +781,28 @@ PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
     {
         encoder.forceASCII = 0;
     }
+    if (oappendNewline != NULL && PyObject_IsTrue(oappendNewline))
+    {
+        DJM_append_newline = 1;
+    }
+    if (oPretty != NULL && PyObject_IsTrue(oPretty))
+    {
+        encoder.pretty = 1;
+    }
 
     encoder.doublePrecision = idoublePrecision;
 
+    if(iDJM_size_hint > sizeof(buffer))
+    {
+        buf = NULL;
+        bufsize = iDJM_size_hint;
+    } else {
+        buf = buffer;
+        bufsize = sizeof(buffer);
+    }
+    
     PRINTMARK();
-    ret = JSON_EncodeObject (oinput, &encoder, buffer, sizeof (buffer));
+    ret = JSON_EncodeObject (oinput, &encoder, buf, bufsize, DJM_append_newline);
     PRINTMARK();
 
     if (PyErr_Occurred())

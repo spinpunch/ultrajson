@@ -831,7 +831,7 @@ FASTCALL_ATTR JSOBJ FASTCALL_MSVC decode_any(struct DecoderState *ds)
 }
 
 
-JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer)
+JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer, int DJM_ignore_trailing)
 {
 
     /*
@@ -859,7 +859,7 @@ JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuf
         dec->free(ds.escStart);
     }
 
-    if (ds.start != ds.end && ret)
+    if (!DJM_ignore_trailing && ds.start != ds.end && ret)
     {
         dec->releaseObject(ret);    
         return SetError(&ds, -1, "Trailing data");

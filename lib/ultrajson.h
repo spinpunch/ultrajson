@@ -54,7 +54,7 @@ tree doesn't have cyclic references.
 //#define JSON_DECODE_NUMERIC_AS_DOUBLE
 
 // Don't output any extra whitespaces when encoding
-#define JSON_NO_EXTRA_WHITESPACE
+// DJM #define JSON_NO_EXTRA_WHITESPACE
 
 // Max decimals to encode double floating point numbers with
 #ifndef JSON_DOUBLE_MAX_DECIMALS
@@ -223,6 +223,8 @@ typedef struct __JSONObjectEncoder
     If true output will be ASCII with all characters above 127 encoded as \uXXXX. If false output will be UTF-8 or what ever charset strings are brought as */
     int forceASCII;
 
+    /* DJM - pretty printing */
+    int pretty;
 
     /*
     Set to an error message if error occured */
@@ -258,7 +260,7 @@ Life cycle of the provided buffer must still be handled by caller.
 If the return value doesn't equal the specified buffer caller must release the memory using
 JSONObjectEncoder.free or free() as specified when calling this function.
 */
-EXPORTFUNCTION char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *buffer, size_t cbBuffer);
+EXPORTFUNCTION char *JSON_EncodeObject(JSOBJ obj, JSONObjectEncoder *enc, char *buffer, size_t cbBuffer, int DJM_append_newline);
 
 
 
@@ -287,6 +289,6 @@ typedef struct __JSONObjectDecoder
 
 } JSONObjectDecoder;
 
-EXPORTFUNCTION JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer);
+EXPORTFUNCTION JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer, int DJM_ignore_trailing);
 
 #endif
