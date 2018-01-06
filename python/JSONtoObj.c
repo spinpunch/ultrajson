@@ -150,7 +150,7 @@ PyObject* JSONToObj(PyObject* self, PyObject *arg)
     decoder.errorStr = NULL;
     decoder.errorOffset = NULL;
     
-    ret = JSON_DecodeObject(&decoder, PyString_AS_STRING(sarg), PyString_GET_SIZE(sarg), 1); 
+    ret = JSON_DecodeObject(&decoder, PyString_AS_STRING(sarg), PyString_GET_SIZE(sarg));
 
     if (sarg != arg)
     {

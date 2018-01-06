@@ -289,6 +289,6 @@ typedef struct __JSONObjectDecoder
 
 } JSONObjectDecoder;
 
-EXPORTFUNCTION JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer, int DJM_ignore_trailing);
+EXPORTFUNCTION JSOBJ JSON_DecodeObject(JSONObjectDecoder *dec, const char *buffer, size_t cbBuffer);
 
 #endif
