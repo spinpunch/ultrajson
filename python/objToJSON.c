@@ -840,7 +840,7 @@ PyObject* objToJSON(PyObject* self, PyObject *args, PyObject *kwargs)
     buf = buffer;
     bufsize = sizeof(buffer);
   }
-    
+
   PRINTMARK();
   ret = JSON_EncodeObject (oinput, &encoder, buf, bufsize, DJM_append_newline);
   PRINTMARK();
