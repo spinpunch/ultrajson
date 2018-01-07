@@ -30,7 +30,19 @@ namespace double_conversion
         StringBuilder sb(buf, buflen);
         int success;
         if(g_DJM_precision >= 0) {
-            success =  static_cast<int>(d2s_instance->ToPrecision(value, g_DJM_precision, &sb));
+            // request fixed number of digits after the decimal point
+            success =  static_cast<int>(d2s_instance->ToFixed(value, g_DJM_precision, &sb));
+            if(success) {
+                // but, substitute the exact representation if it is shorter
+                char ebuf[buflen];
+                StringBuilder esb(ebuf, buflen);
+                int esuccess = static_cast<int>(d2s_instance->ToShortest(value, &esb));
+                if(esuccess && esb.position() < sb.position()) {
+                    memcpy(buf, ebuf, esb.position());
+                    *strlength = esb.position();
+                    return esuccess;
+                }
+            }
         } else {
             success =  static_cast<int>(d2s_instance->ToShortest(value, &sb));
         }
